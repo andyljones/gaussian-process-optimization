@@ -3,13 +3,13 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-def sq_exp_kernel(p, q, length=.1, mag=2):
+def k(p, q, length=.1, mag=2):
     return mag*sp.exp(-(sp.spatial.distance.cdist(p, q)/length)**2)
 
-def evaluate(x_test, x_obs, y_obs, k=sq_exp_kernel, s=1e-3):
-    koo = k(x_obs, x_obs) + s**2*sp.eye(len(x_obs))
-    kto = k(x_obs, x_test)
-    ktt = k(x_test, x_test)
+def evaluate(x_test, x_obs, y_obs, s=1e-3, **kwargs):
+    koo = k(x_obs, x_obs, **kwargs) + s**2*sp.eye(len(x_obs))
+    kto = k(x_obs, x_test, **kwargs)
+    ktt = k(x_test, x_test, **kwargs)
     
     cho_koo = sp.linalg.cho_factor(koo)
     
@@ -45,7 +45,34 @@ def optimize(f, left, right, tol=1e-3, n=200, **kwargs):
         y_obs = sp.vstack([y_obs, f(x_new)])
         
     return x_obs, y_obs
-        
-        
+    
+### PRESENTATION FNS
+
+def plot_optimization_step(x_obs, y_obs, x_test, i):
+    mu_test, sigma_test = evaluate(x_test, x_obs[:i], y_obs[:i])
+    diag = sp.diag(sigma_test)[:, None] + 1e-3
+    
+    plt.plot(x_test, mu_test)
+    plt.fill_between(x_test.flatten(), (mu_test - 2*diag).flatten(), (mu_test + 2*diag).flatten(), alpha=0.3)
+    plt.xlim(x_test.min(), x_test.max())
+    plt.scatter(x_obs[:i], y_obs[:i])
+    if i < len(x_obs):
+        plt.axvline(x_obs[i], c='r', alpha=0.3)
+
+def plot_expected_improvement(x_obs, y_obs, x_test, i):
+    ei = expected_improvement(x_test, x_obs[:i], y_obs[:i])
+    plt.plot(x_test, ei)
+    if i < len(x_obs):
+        plt.axvline(x_obs[i], c='r', alpha=0.3)
+
 def gramacy_lee(x):
     return sp.sin(10*sp.pi*x)/(2*x) + (x - 1)**4
+    
+#i = 1
+#fig, axes = plt.subplots(2, 1, sharex=True)
+#plt.sca(axes[0])
+#plt.ylim(-6, +6)
+#plot_optimization_step(x_obs, y_obs, x_test, i)
+#plt.sca(axes[1])
+#plot_expected_improvement(x_obs, y_obs, x_test, i)
+#plt.ylim(0, 1)
