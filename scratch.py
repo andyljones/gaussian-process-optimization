@@ -7,9 +7,12 @@ def k(p, q, length=.1, mag=2):
     return mag*sp.exp(-(sp.spatial.distance.cdist(p, q)/length)**2)
 
 def evaluate(x_test, x_obs, y_obs, s=1e-3, **kwargs):
+    ktt = k(x_test, x_test, **kwargs)        
+    if len(x_obs) == 0:
+        return sp.zeros_like(x_test), ktt
+    
     koo = k(x_obs, x_obs, **kwargs) + s**2*sp.eye(len(x_obs))
     kto = k(x_obs, x_test, **kwargs)
-    ktt = k(x_test, x_test, **kwargs)
     
     cho_koo = sp.linalg.cho_factor(koo)
     
@@ -19,6 +22,9 @@ def evaluate(x_test, x_obs, y_obs, s=1e-3, **kwargs):
     return mu_test, sigma_test
     
 def expected_improvement(x_test, x_obs, y_obs, **kwargs):
+    if len(x_obs) == 0:
+        return sp.inf*sp.ones_like(x_test)
+    
     mu_test, sigma_test = evaluate(x_test, x_obs, y_obs, **kwargs)
     
     best = y_obs.min()
