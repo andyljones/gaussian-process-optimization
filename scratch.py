@@ -23,32 +23,27 @@ def evaluate(x_test, x_obs, y_obs, s=1e-3, **kwargs):
     
     return mu_test, sigma_test
     
-def expected_improvement(x_test, x_obs, y_obs, **kwargs):
+def lower_confidence_bound(x_test, x_obs, y_obs, p=0.01, **kwargs):
     if len(x_obs) == 0:
         return sp.inf*sp.ones_like(x_test)
     
     mu_test, sigma_test = evaluate(x_test, x_obs, y_obs, **kwargs)
-    
-    best = y_obs.min()
-    z_test = (best - mu_test)/sp.diag(sigma_test)[:, None]
-    
-    pdf = sp.stats.norm.pdf(z_test)
-    cdf = sp.stats.norm.cdf(z_test)
-    
-    ei = (best - mu_test)*cdf + sp.diag(sigma_test)[:, None]*pdf
+        
+    std_test = sp.sqrt(sp.diag(sigma_test))
+    lcb = mu_test.flatten() + sp.stats.norm.ppf(0.01)*std_test
 
-    return ei.clip(0, None)
+    return lcb
     
 def optimize(f, left, right, tol=1e-3, n=200, **kwargs):
     x_obs = sp.array([[(left + right)/2.]])
     y_obs = f(x_obs)
     x_test = sp.linspace(left, right, n)[:, None]
     
-    ei = sp.array([[sp.inf]])
-    while ei.max() > tol:
-        ei = expected_improvement(x_test, x_obs, y_obs, **kwargs)
-        print ei.max()
-        x_new = x_test[sp.argmax(ei)]
+    lcb = sp.array([[-sp.inf]])
+    while lcb.min() - y_obs.min() < -tol:
+        lcb = lower_confidence_bound(x_test, x_obs, y_obs, **kwargs)
+        print lcb.min() - y_obs.min()
+        x_new = x_test[sp.argmin(lcb)]
         x_obs = sp.vstack([x_obs, [x_new]])
         y_obs = sp.vstack([y_obs, f(x_new)])
         
@@ -61,9 +56,9 @@ def plot_optimization_step(x_obs, y_obs, x_test, i, **kwargs):
     if i < len(x_obs):
         plt.axvline(x_obs[i], c='r', alpha=0.3)
 
-def plot_expected_improvement(x_obs, y_obs, x_test, i):
-    ei = expected_improvement(x_test, x_obs[:i], y_obs[:i])
-    plt.plot(x_test, ei)
+def plot_lcb(x_obs, y_obs, x_test, i):
+    lcb = lower_confidence_bound(x_test, x_obs[:i], y_obs[:i])
+    plt.plot(x_test, lcb)
     if i < len(x_obs):
         plt.axvline(x_obs[i], c='r', alpha=0.3)
 
@@ -113,7 +108,7 @@ def plot_covariance(x_obs, y_obs, x_test, **kwargs):
 #plot_optimization_step(x_obs, y_obs, x_test, i=14, **kwargs)
 #plt.plot(x_test, gramacy_lee(x_test))
 #plot_config()
-    
+#    
 #x_obs = sp.array([0, 2, 2.1])
 #y_obs = sp.array([1, 3, 4])
 #x_test = sp.linspace(-5, +5, 500)[:, None]
